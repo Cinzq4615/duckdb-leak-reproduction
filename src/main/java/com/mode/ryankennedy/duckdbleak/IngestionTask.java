@@ -24,8 +24,6 @@ public class IngestionTask implements Runnable {
 
     @Override
     public void run() {
-        System.out.printf("Loading table %s...%n", tableName);
-
         try (DuckDBConnection runConnection = ((DuckDBConnection) connection.duplicate())) {
             createTable(runConnection);
             loadTable(runConnection);

@@ -35,9 +35,6 @@ public class Main {
         // Determine how long the test is going to run.
         Duration testDuration = getTestDuration(args);
 
-        // Print out the process ID so we can run `ps -o pid,rss -p {pid}` to capture total memory use.
-        System.out.printf("Process ID = %d%n", ProcessHandle.current().pid());
-
         // A thread pool to process all table creations and ingestions in the background.
         ExecutorService threadPool = Executors.newFixedThreadPool(
                 4, new ThreadFactoryBuilder().setNameFormat("background-%d").setDaemon(true).build());

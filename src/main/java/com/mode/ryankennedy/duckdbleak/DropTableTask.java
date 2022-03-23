@@ -22,8 +22,6 @@ public class DropTableTask implements Runnable {
     public void run() {
         try (Connection runConnection = connection.duplicate();
              Statement statement = runConnection.createStatement()) {
-            System.out.printf("Dropping table %s%n", tableName);
-
             statement.executeUpdate(String.format("DROP TABLE IF EXISTS %s", tableName));
         } catch (SQLException e) {
             System.err.printf("Error dropping table %s%n", tableName);
