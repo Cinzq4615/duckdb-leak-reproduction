@@ -23,7 +23,7 @@ java -jar "$JAR_PATH" "$DURATION" &
 JAVA_PID=$!
 
 # Make sure that we shut down the java process if this script exits
-trap 'kill $JAVA_PID' SIGINT
+trap 'kill $JAVA_PID' INT
 
 # Write a timestamp and the java process RSS out every second for as long
 # as the process is running.
@@ -36,4 +36,4 @@ done
 
 # Clear the SIGINT trap, otherwise it'll complain about killing the
 # (nonexistant) java process when this script ends
-trap - SIGINT
+trap - INT
