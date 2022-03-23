@@ -1,8 +1,8 @@
 # DuckDB Memory Leak Reproduction
 
-We believe we've discovered a memory leak somewhere in DuckDB during the running of one of our services. This long-lived
-process sees continually growing RSS (resident set size) memory until we disable (via feature flag) all DuckDB activity,
-at which point the RSS plateaus.
+We believe we've discovered a memory leak somewhere in DuckDB 0.3.2 during the running of one of our services. This
+long-lived process sees continually growing RSS (resident set size) memory until we disable (via feature flag) all
+DuckDB activity, at which point the RSS plateaus.
 
 We've written the code in this repository to approximate what our service is doing. In short it performs the following:
 
