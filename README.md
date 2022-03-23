@@ -13,7 +13,7 @@ We've written the code in this repository to approximate what our service is doi
 ## Running the Program
 
 1. Build the program: `./mvnw clean package`
-2. Run the program: `./run.sh [duration]`
+2. Run the program: `./run.sh [duration]` (e.g. `./run.sh PT1H`).
 
 The duration argument is optional. If given it should conform to the format specified by 
 [java.time.Duration#parse(CharSequence)](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-).
