@@ -15,5 +15,23 @@ We've written the code in this repository to approximate what our service is doi
 1. Build the program: `./mvnw clean package`
 2. Run the program: `./run.sh [duration]` (e.g. `./run.sh PT1H`).
 
-The duration argument is optional. If given it should conform to the format specified by 
-[java.time.Duration#parse(CharSequence)](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-).
+The duration argument is optional. If given it should conform to the format specified by
+[java.time.Duration#parse(CharSequence)](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-)
+.
+
+The script will output the Java process RSS once per second with timestamps, which is helpful for charting RSS use over
+time:
+
+```
+% ./run.sh PT1H
+15:24:02 2032
+15:24:03 160960
+15:24:04 196288
+15:24:05 215168
+15:24:06 224592
+15:24:07 253424
+15:24:09 295056
+15:24:10 337712
+15:24:11 379520
+...
+```
