@@ -1,5 +1,5 @@
 # Project exclude paths
 .idea/
-.mvn/wrapper/
+.mvn/wrapper/maven-wrapper.jar
 target/
 dependency-reduced-pom.xml
