@@ -36,3 +36,11 @@ time:
 15:24:11 379520
 ...
 ```
+
+## Results
+
+We ran this program for 12 hours and then plotted the output, resulting in the following: 
+
+![12 hour run results](results.png)
+
+It seems pretty evident that there is a memory leak somewhere.
