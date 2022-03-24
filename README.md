@@ -40,8 +40,18 @@ time:
 
 ## Results
 
-We ran this program for 12 hours and then plotted the output, resulting in the following: 
+We ran this program for 12 hours and then plotted the output, resulting in the following:
 
 ![12 hour run results](results.png)
 
-It seems pretty evident that there is a memory leak somewhere.
+## Using jemalloc leak detection
+
+In order to use [jemalloc](http://jemalloc.net/) we needed to comment
+out [line 42 in DuckDBNative.java](https://github.com/duckdb/duckdb/blob/39cfae40b31bd5be73f7686af889e8b801da21b7/tools/jdbc/src/main/java/org/duckdb/DuckDBNative.java#L42)
+, otherwise jemalloc wouldn't give us any DuckDB symbol information.
+
+We also ran this same program for 2 hours using, which resulted in the following:
+
+![2 hour jemalloc results](jemalloc.gif)
+
+[Here](jemalloc.pdf) is a PDF version, for searching among the stack frames.
