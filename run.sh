@@ -29,7 +29,7 @@ trap 'kill $JAVA_PID' INT
 # as the process is running.
 RSS=$(ps -o rss= -p $JAVA_PID)
 while [ $? -eq 0 ]; do
-  echo $RSS | ts '%H:%M:%S'
+  echo $RSS | ts '%Y-%m-%d %H:%M:%S,'
   sleep 1
   RSS=$(ps -o rss= -p $JAVA_PID)
 done
