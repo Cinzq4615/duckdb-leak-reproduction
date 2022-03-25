@@ -48,9 +48,27 @@ We ran this program for 12 hours and then plotted the output, resulting in the f
 
 In order to use [jemalloc](http://jemalloc.net/) we needed to comment
 out [line 42 in DuckDBNative.java](https://github.com/duckdb/duckdb/blob/39cfae40b31bd5be73f7686af889e8b801da21b7/tools/jdbc/src/main/java/org/duckdb/DuckDBNative.java#L42)
-, otherwise jemalloc wouldn't give us any DuckDB symbol information.
+, otherwise jemalloc wouldn't give us any DuckDB symbol information. We built this custom version of `duckdb_jdbc.jar`
+using the `reldebug` Makefile target.
 
-We also ran this same program for 2 hours using, which resulted in the following:
+We ran the program for two hours with the following configuration:
+
+```
+MALLOC_CONF=prof_leak:true,lg_prof_sample:0,prof_final:true \
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 \
+/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java -jar target/duckdb-leak-reproduction-1.0-SNAPSHOT.jar PT2H
+```
+
+We then post processed the jemalloc `.heap` files using the following:
+
+```
+jeprof --show_bytes --lines --pdf /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java *.heap > jemalloc.pdf
+jeprof --show_bytes --lines --gif /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java *.heap > jemalloc.gif
+```
+
+This two hour run resulted in the leak graph below, which appears to indicate a leak of DuckDB FileBuffer objects
+associated with our ingestion (row writing) activity. This agrees with our observation that the leak stopped growing in
+our production environment as soon as we disabled the feature flag controlling whether we load data into DuckDB.
 
 ![2 hour jemalloc results](jemalloc.gif)
 
