@@ -3,10 +3,13 @@ package com.mode.ryankennedy.duckdbleak;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.duckdb.DuckDBConnection;
+import org.duckdb.DuckDBDatabase;
 
-import java.sql.DriverManager;
+import java.sql.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -18,59 +21,55 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class Main {
-    // The maximum number of tables to keep in DuckDB. Above this amount we start dropping tables
-    // to remain at this limit.
-    private static final long RESIDENT_TABLE_LIMIT = 100;
-
     // How long the test should run.
     private static final Duration DEFAULT_TEST_DURATION = Duration.ofHours(1);
 
-    // How rapidly we should create and ingest new tables.
-    private static final RateLimiter INGESTION_RATE = RateLimiter.create(5);
-
     // How long to wait for the thread pool to shut down when quitting.
     private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
+
+    private static final String DATABASE_SIZE_QUERY = "pragma database_size";
+    private static final String TABLE_COUNT_QUERY =
+	"select count(*) as table_count from information_schema.tables where table_schema = 'main'";
 
     public static void main(String[] args) throws Exception {
         // Determine how long the test is going to run.
         Duration testDuration = getTestDuration(args);
 
-        // A thread pool to process all table creations and ingestions in the background.
-        ExecutorService threadPool = Executors.newFixedThreadPool(
-                4, new ThreadFactoryBuilder().setNameFormat("background-%d").setDaemon(true).build());
-
         // Do the date math to figure out when the test should shut down.
         ZonedDateTime startingAt = ZonedDateTime.now();
         ZonedDateTime endingAt = startingAt.plus(testDuration);
 
-        // Keep a monotonic counter to track each table creation and ingestion.
-        AtomicLong counter = new AtomicLong();
+        while (ZonedDateTime.now().isBefore(endingAt)) {
+	    DuckDBConnection connection = (DuckDBConnection) DriverManager.getConnection("jdbc:duckdb:");
+	    try (Statement statement = connection.createStatement()) {
+		statement.execute("PRAGMA threads=1;");
+	    }
 
-        // Create an in-memory DuckDB database.
-        try (DuckDBConnection connection = (DuckDBConnection) DriverManager.getConnection("jdbc:duckdb:")) {
-            // Run table creations and ingestions until our time is up.
-            while (ZonedDateTime.now().isBefore(endingAt)) {
-                // Acquire a token from the rate limiter.
-                INGESTION_RATE.acquire();
+	    for (int ii = 0; ii < 10; ++ii) {
+		Thread.sleep(1000);
+		// Try to clear out any JVM noise.
+		System.gc();
 
-                // Get an identifier for this ingestion.
-                long ingestionCounter = counter.getAndIncrement();
+		try (Statement statement = connection.createStatement()) {
+		    try (ResultSet results = statement.executeQuery(DATABASE_SIZE_QUERY)) {
+			if (!results.next()) {
+			    throw new Exception("Empty result set from 'pragma database_size'");
+			}
+		    }
 
-                // If we're at or above the table limit, drop an earlier table to remain at the limit.
-                if (ingestionCounter >= RESIDENT_TABLE_LIMIT) {
-                    threadPool.submit(new DropTableTask(connection, getTableNameForCounter(ingestionCounter - RESIDENT_TABLE_LIMIT)));
-                }
+		    try (ResultSet results = statement.executeQuery(TABLE_COUNT_QUERY)) {
+			if (!results.next()) {
+			    throw new Exception("Empty result set when determining table count");
+			}
+		    }
+		}
+	    }
 
-                // Submit a new ingestion task.
-                threadPool.submit(new IngestionTask(connection, getTableNameForCounter(ingestionCounter)));
-            }
+	    DuckDBDatabase db = connection.getDatabase();
+	    connection.close();
+	    db.shutdown();
+	}
 
-            // Shut down the thread pool and wait a while for it to complete any in-flight work.
-            threadPool.shutdown();
-            if (!threadPool.awaitTermination(SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
-                System.err.printf("Thread pool has taken longer than %s to shut down%n", SHUTDOWN_TIMEOUT);
-            }
-        }
     }
 
     /**
@@ -86,15 +85,5 @@ public class Main {
         }
 
         return Duration.parse(args[0]);
-    }
-
-    /**
-     * Generates the table name for the given ingestion number.
-     *
-     * @param ingestionCounter The ingestion number.
-     * @return The table name.
-     */
-    private static String getTableNameForCounter(long ingestionCounter) {
-        return String.format("T%09d", ingestionCounter);
     }
 }

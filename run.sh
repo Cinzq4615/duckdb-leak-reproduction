@@ -27,6 +27,7 @@ trap 'kill $JAVA_PID' INT
 
 # Write a timestamp and the java process RSS out every second for as long
 # as the process is running.
+echo "Timestamp,RSS"
 RSS=$(ps -o rss= -p $JAVA_PID)
 while [ $? -eq 0 ]; do
   echo $RSS | ts '%Y-%m-%d %H:%M:%S,'

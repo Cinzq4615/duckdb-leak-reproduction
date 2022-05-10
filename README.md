@@ -1,15 +1,14 @@
 # DuckDB Memory Leak Reproduction
 
-We believe we've discovered a memory leak somewhere in DuckDB 0.3.2 during the running of one of our services. This
+We believe we've discovered a memory leak somewhere in DuckDB 0.3.3 during the running of one of our services. This
 long-lived process sees continually growing RSS (resident set size) memory until we disable (via feature flag) all
 DuckDB activity, at which point the RSS plateaus.
 
 We've written the code in this repository to approximate what our service is doing. In short it performs the following:
 
 1. Creates an in-memory DuckDB database
-2. Creates a background thread pool
-3. Submits table creation + data loading tasks at a fixed rate to the thread pool
-4. Drops tables as necessary to maintain 100 tables at any given time
+2. Perform two queries using a single `Statement` object
+3. Deletes the DuckDB database
 
 ## Running the Program
 
@@ -25,6 +24,7 @@ time:
 
 ```
 % ./run.sh PT1H
+Timestamp,RSS
 2022-03-24 08:52:16, 2032
 2022-03-24 08:52:18, 162528
 2022-03-24 08:52:19, 196304
@@ -51,7 +51,7 @@ out [line 42 in DuckDBNative.java](https://github.com/duckdb/duckdb/blob/39cfae4
 , otherwise jemalloc wouldn't give us any DuckDB symbol information. We built this custom version of `duckdb_jdbc.jar`
 using the `reldebug` Makefile target.
 
-We ran the program for two hours with the following configuration:
+We ran the program for one hour with the following configuration:
 
 ```
 MALLOC_CONF=prof_leak:true,lg_prof_sample:0,prof_final:true \
@@ -66,9 +66,12 @@ jeprof --show_bytes --lines --pdf /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
 jeprof --show_bytes --lines --gif /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java *.heap > jemalloc.gif
 ```
 
-This two hour run resulted in the leak graph below, which appears to indicate a leak of DuckDB FileBuffer objects
-associated with our ingestion (row writing) activity. This agrees with our observation that the leak stopped growing in
-our production environment as soon as we disabled the feature flag controlling whether we load data into DuckDB.
+This one hour run resulted in the leak graph below. This shows what appears to be a memory leak in the
+query process. The leak only happens when running two queries against the same `Statement` object. When
+using an individual `Statement` object per query, the leak does not manifest. The docs for the Java client
+imply that using a single `Statement` object for multiple queries is acceptable. It is important to note
+that this leak is not remedied by cleanup and removal of the DuckDB database instance the queries were
+run against.
 
 ![2 hour jemalloc results](jemalloc.gif)
 
