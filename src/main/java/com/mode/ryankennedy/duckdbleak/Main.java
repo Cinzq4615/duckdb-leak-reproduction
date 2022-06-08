@@ -1,19 +1,14 @@
 package com.mode.ryankennedy.duckdbleak;
 
-import com.google.common.util.concurrent.RateLimiter;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.duckdb.DuckDBAppender;
 import org.duckdb.DuckDBConnection;
 import org.duckdb.DuckDBDatabase;
 
-import java.sql.*;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A simple driver program that uses the org.duckdb:duckdb_jdbc Maven package to
@@ -28,8 +23,15 @@ public class Main {
     private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
 
     private static final String DATABASE_SIZE_QUERY = "pragma database_size";
-    private static final String TABLE_COUNT_QUERY =
-	"select count(*) as table_count from information_schema.tables where table_schema = 'main'";
+    private static final String TABLE_COUNT_QUERY = "select count(id) as count from mydb.test";
+
+
+    private static final String SCHEMA_CREATE_SQL = "CREATE SCHEMA IF NOT EXISTS mydb;";
+
+    private static final String TABEL_CREATE_SQL = "CREATE TABLE IF NOT EXISTS mydb.test(id INTEGER, name VARCHAR);";
+
+    private static final String TABEL_DROP_SQL = "DROP TABLE IF EXISTS mydb.test;";
+
 
     public static void main(String[] args) throws Exception {
         // Determine how long the test is going to run.
@@ -39,36 +41,51 @@ public class Main {
         ZonedDateTime startingAt = ZonedDateTime.now();
         ZonedDateTime endingAt = startingAt.plus(testDuration);
 
+
+        DuckDBConnection connection = (DuckDBConnection) DriverManager.getConnection("jdbc:duckdb:");
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA threads=1;");
+        }
+
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(SCHEMA_CREATE_SQL);
+        }
+
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(TABEL_CREATE_SQL);
+        }
+        System.out.println("append data start ......");
+        for (int ii = 0; ii < 1000; ++ii) {
+            DuckDBAppender appender = connection.createAppender("mydb", "test");
+            for (int i = 0; i < 100000; i++) {
+                appender.beginRow();
+                appender.append(i);
+                appender.append("name-" + i);
+                //appender.ap
+                appender.endRow();
+            }
+            appender.close();
+        }
+        System.out.println("append data end ......");
+
+        try (Statement statement = connection.createStatement()) {
+            ResultSet rs = statement.executeQuery(TABLE_COUNT_QUERY);
+            rs.next();
+            System.out.println("count=" + rs.getInt(1));
+        }
+
+        System.out.println("drop table start ......");
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(TABEL_DROP_SQL);
+        }
+        System.out.println("drop table end......");
+
+        DuckDBDatabase db = connection.getDatabase();
+        connection.close();
+        db.shutdown();
         while (ZonedDateTime.now().isBefore(endingAt)) {
-	    DuckDBConnection connection = (DuckDBConnection) DriverManager.getConnection("jdbc:duckdb:");
-	    try (Statement statement = connection.createStatement()) {
-		statement.execute("PRAGMA threads=1;");
-	    }
-
-	    for (int ii = 0; ii < 10; ++ii) {
-		Thread.sleep(1000);
-		// Try to clear out any JVM noise.
-		System.gc();
-
-		try (Statement statement = connection.createStatement()) {
-		    try (ResultSet results = statement.executeQuery(DATABASE_SIZE_QUERY)) {
-			if (!results.next()) {
-			    throw new Exception("Empty result set from 'pragma database_size'");
-			}
-		    }
-
-		    try (ResultSet results = statement.executeQuery(TABLE_COUNT_QUERY)) {
-			if (!results.next()) {
-			    throw new Exception("Empty result set when determining table count");
-			}
-		    }
-		}
-	    }
-
-	    DuckDBDatabase db = connection.getDatabase();
-	    connection.close();
-	    db.shutdown();
-	}
+            Thread.sleep(1000);
+        }
 
     }
 
