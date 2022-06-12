@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.Random;
 
 /**
  * A simple driver program that uses the org.duckdb:duckdb_jdbc Maven package to
@@ -32,6 +33,10 @@ public class Main {
 
     private static final String TABEL_DROP_SQL = "DROP TABLE IF EXISTS mydb.test;";
 
+    private static final String TABEL_QUERY_SQL = "SELECT * FROM mydb.test where id=%d";
+
+    private static Random random = new Random();
+
 
     public static void main(String[] args) throws Exception {
         // Determine how long the test is going to run.
@@ -42,7 +47,7 @@ public class Main {
         ZonedDateTime endingAt = startingAt.plus(testDuration);
 
 
-        DuckDBConnection connection = (DuckDBConnection) DriverManager.getConnection("jdbc:duckdb:");
+        DuckDBConnection connection = (DuckDBConnection) DriverManager.getConnection("jdbc:duckdb::memory:");
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA threads=1;");
         }
@@ -74,18 +79,23 @@ public class Main {
             System.out.println("count=" + rs.getInt(1));
         }
 
-        System.out.println("drop table start ......");
-        try (Statement statement = connection.createStatement()) {
-            statement.execute(TABEL_DROP_SQL);
+//        System.out.println("drop table start ......");
+//        try (Statement statement = connection.createStatement()) {
+//            statement.execute(TABEL_DROP_SQL);
+//        }
+//        System.out.println("drop table end......");
+        while (ZonedDateTime.now().isBefore(endingAt)) {
+            try (Statement statement = connection.createStatement();ResultSet rs = statement.executeQuery(String.format(TABEL_QUERY_SQL,random.nextInt(100000)))) {
+                if(rs.next()){
+                    System.out.println(rs.getString(2));
+                }
+            }
         }
-        System.out.println("drop table end......");
 
         DuckDBDatabase db = connection.getDatabase();
         connection.close();
         db.shutdown();
-        while (ZonedDateTime.now().isBefore(endingAt)) {
-            Thread.sleep(1000);
-        }
+
 
     }
 
