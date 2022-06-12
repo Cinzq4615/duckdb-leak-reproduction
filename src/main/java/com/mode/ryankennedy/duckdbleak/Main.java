@@ -57,7 +57,7 @@ public class Main {
         System.out.println("append data start ......");
         for (int ii = 0; ii < 1000; ++ii) {
             DuckDBAppender appender = connection.createAppender("mydb", "test");
-            for (int i = 0; i < 100000; i++) {
+            for (int i = 0; i < 10000; i++) {
                 appender.beginRow();
                 appender.append(i);
                 appender.append("name-" + i);
